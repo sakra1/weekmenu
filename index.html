@@ -54,6 +54,21 @@ h1 small{display:block;font-size:15px;font-weight:600;color:var(--mute);margin-t
 .who{margin:14px 2px 0;font-size:14px;color:var(--mute)}
 .who strong{color:var(--ink)}
 .acts{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.chat{margin-top:18px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);padding:12px 12px 10px}
+.chat h2{font-size:17px;margin:0 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.chat h2 button{border:0;background:none;color:var(--mute);font:600 13px Figtree,sans-serif;cursor:pointer;min-height:32px}
+.msgs{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.msgs li{font-size:15px;line-height:1.35;overflow-wrap:break-word}
+.msgs b{font-weight:600}
+.msgs time{color:var(--mute);font-size:12px;margin-left:6px;white-space:nowrap}
+.msgs .empty{color:var(--mute);font-size:14px}
+.cnote{font-size:13px;color:var(--tom);margin:6px 0 0}.cnote:empty{display:none}
+.send{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;margin-top:10px}
+.send select{min-height:44px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px;padding:0 6px;max-width:110px}
+.send .in{min-height:44px}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.quick button{min-height:36px;padding:0 12px;border-radius:99px;border:1.5px solid var(--line);background:var(--bg);cursor:pointer;font-size:14px;font-weight:600}
+@media(max-width:420px){.send{grid-template-columns:minmax(0,1fr) auto}.send select{grid-column:1/-1;max-width:none}}
 .btn{min-height:44px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);cursor:pointer;font-weight:600}
 .btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .btn.warn{background:var(--tom);border-color:var(--tom);color:#fff}
@@ -93,6 +108,17 @@ dialog p{margin:0 0 12px;color:var(--mute);font-size:15px}
   <div><span class="st"><span>?</span></span>nog niet ingevuld</div>
  </div>
  <p class="who" id="who"></p>
+ <section class="chat" aria-label="Berichten">
+  <h2>Berichten <button id="more" hidden>Ouder</button></h2>
+  <ol class="msgs" id="msgs"><li class="empty">Nog geen berichten.</li></ol>
+  <p class="cnote" id="cnote"></p>
+  <form class="send" id="sendf">
+   <select id="me" aria-label="Wie ben jij?"></select>
+   <input class="in" id="msgIn" maxlength="300" autocomplete="off" placeholder="Bericht, bijv. ik ben om 19:00 thuis" aria-label="Bericht">
+   <button class="btn pri" type="submit">Stuur</button>
+  </form>
+  <div class="quick"><button type="button" data-q="laat">Ik ben vandaag later</button><button type="button" data-q="niet">Ik eet vandaag niet mee</button></div>
+ </section>
  <div class="acts">
   <button class="btn" id="famBtn">Gezin bewerken</button>
   <button class="btn" id="shareBtn">Link delen</button>
@@ -153,6 +179,7 @@ const fridayOf=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
 const note=t=>{$('#note').textContent=t||''};
+const cnote=t=>{$('#cnote').textContent=t||''};
 
 let week=fridayOf(new Date()),wk=ymd(week),code='';
 let members=[],menu={},att={},api=null,unsubWeek=null,editDay=0,armed=null;
@@ -187,13 +214,15 @@ async function firebaseApi(cfg,code){
   setMenu(k,d,dish){merge(wref(k),{menu:{[d]:dish||F.deleteField()}})},
   setAtt(k,d,m,s){merge(wref(k),{att:{[d+'_'+m]:s||F.deleteField()}})},
   saveMember(id,v){merge(fam,{members:{[id]:v}})},
-  delMember(id){merge(fam,{members:{[id]:F.deleteField()}})}
+  delMember(id){merge(fam,{members:{[id]:F.deleteField()}})},
+  watchMsgs(cb){const col=F.collection(db,'gezin',code,'berichten');F.onSnapshot(F.query(col,F.orderBy('t','desc'),F.limit(30)),s=>{cnote('');cb(s.docs.map(d=>d.data()))},e=>{console.error(e);cnote(e&&e.code==='permission-denied'?'Berichten staan nog niet aan: de Firebase-regels moeten nog worden bijgewerkt.':'Berichten konden niet worden geladen.')})},
+  send(m,tekst){return F.addDoc(F.collection(db,'gezin',code,'berichten'),{m,tekst,t:Date.now()}).then(()=>true,e=>{console.error(e);cnote(e&&e.code==='permission-denied'?'Versturen mag nog niet: de Firebase-regels moeten nog worden bijgewerkt.':'Versturen lukte niet. Controleer je verbinding.');return false})}
  };
 }
 function localApi(){
  const K='weekmenu-proef';let S;try{S=JSON.parse(localStorage.getItem(K))||{}}catch(e){S={}}
  S.members=S.members||{};S.weeks=S.weeks||{};
- let fm=null,fw=null,cur='';
+ let fm=null,fw=null,cur='',fmsg=null;
  const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
  const W=k=>S.weeks[k]=S.weeks[k]||{menu:{},att:{}};
  const emitM=()=>fm&&fm(Object.entries(S.members).map(([id,v])=>({id,...v})));
@@ -204,7 +233,9 @@ function localApi(){
   setMenu(k,d,v){if(v)W(k).menu[d]=v;else delete W(k).menu[d];save();emitW()},
   setAtt(k,d,m,s){if(s)W(k).att[d+'_'+m]=s;else delete W(k).att[d+'_'+m];save();emitW()},
   saveMember(id,v){S.members[id]=v;save();emitM()},
-  delMember(id){delete S.members[id];save();emitM()}
+  delMember(id){delete S.members[id];save();emitM()},
+  watchMsgs(cb){S.msgs=S.msgs||[];fmsg=cb;cb(S.msgs.slice(-30).reverse())},
+  send(m,tekst){S.msgs=S.msgs||[];S.msgs.push({m,tekst,t:Date.now()});save();fmsg&&fmsg(S.msgs.slice(-30).reverse());return Promise.resolve(true)}
  };
 }
 
@@ -236,6 +267,7 @@ function render(){
  if(grp[''].length)parts.push(`<strong>Nog niet ingevuld:</strong> ${grp[''].join(', ')}`);
  $('#who').innerHTML=members.length?`${todayIdx>=0?'Vandaag':DAYS[0]}: `+parts.join(' · '):'Voeg eerst de gezinsleden toe via "Gezin bewerken".';
  renderFam();
+ renderMe();
 }
 function renderFam(){
  $('#flist').innerHTML=members.map(m=>`<div class="fr"><input class="in" data-fid="${esc(m.id)}" value="${esc(m.name)}" maxlength="30" aria-label="Naam"><button class="btn${armed===m.id?' warn':''}" data-del="${esc(m.id)}">${armed===m.id?'Zeker?':'Weg'}</button></div>`).join('');
@@ -258,6 +290,35 @@ $('#grid').addEventListener('click',e=>{
  if(c){editDay=+c.dataset.day;$('#menuDay').textContent=`${DAYS[editDay]} ${fmt(addDays(week,editDay))}`;$('#menuIn').value=menu[editDay]||'';$('#dlgMenu').showModal();$('#menuIn').focus()}
 });
 $('#dlgMenu').addEventListener('close',()=>{if($('#dlgMenu').returnValue!=='ok')return;const v=$('#menuIn').value.trim();if((menu[editDay]||'')!==v){if(v)menu[editDay]=v;else delete menu[editDay];render();api.setMenu(wk,editDay,v)}});
+/* ---------- berichten ---------- */
+let msgs=[],showAll=false,me='';
+try{me=localStorage.getItem('weekmenu-ik')||''}catch(e){}
+const nameOf=id=>(members.find(m=>m.id===id)||{}).name||'Iemand';
+function when(t){const d=new Date(t),now=new Date(),hm=pad(d.getHours())+':'+pad(d.getMinutes());
+ if(ymd(d)===ymd(now))return hm;if(ymd(d)===ymd(addDays(now,-1)))return 'gisteren '+hm;
+ return ['zo','ma','di','wo','do','vr','za'][d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]+' '+hm}
+function renderMsgs(){
+ const list=msgs.filter(x=>x&&typeof x.tekst==='string'&&typeof x.t==='number').slice().reverse();
+ const shown=showAll?list:list.slice(-4);
+ $('#more').hidden=list.length<=4;$('#more').textContent=showAll?'Minder':'Ouder';
+ $('#msgs').innerHTML=shown.length?shown.map(x=>`<li><b>${esc(nameOf(x.m))}</b>: ${esc(x.tekst)}<time>${esc(when(x.t))}</time></li>`).join(''):'<li class="empty">Nog geen berichten.</li>';
+}
+function renderMe(){
+ const sel=$('#me');if(document.activeElement===sel)return;
+ sel.innerHTML='<option value="">Wie ben jij?</option>'+members.map(m=>`<option value="${esc(m.id)}"${m.id===me?' selected':''}>${esc(m.name)}</option>`).join('');
+ renderMsgs();
+}
+$('#me').addEventListener('change',e=>{me=e.target.value;try{localStorage.setItem('weekmenu-ik',me)}catch(x){}});
+$('#more').onclick=()=>{showAll=!showAll;renderMsgs()};
+async function sendMsg(tekst){
+ if(!me||!members.some(m=>m.id===me)){cnote('Kies eerst wie je bent.');$('#me').focus();return false}
+ cnote('');return api.send(me,tekst);
+}
+$('#sendf').addEventListener('submit',async e=>{e.preventDefault();const v=$('#msgIn').value.trim();if(!v)return;if(await sendMsg(v))$('#msgIn').value=''});
+document.querySelector('.quick').addEventListener('click',async e=>{const b=e.target.closest('[data-q]');if(!b)return;
+ const s=b.dataset.q;if(!(await sendMsg(s==='laat'?'Ik ben vandaag later thuis.':'Ik eet vandaag niet mee.')))return;
+ const now=new Date(),k=ymd(fridayOf(now)),d=(now.getDay()+2)%7;api.setAtt(k,d,me,s);if(k===wk){att[d+'_'+me]=s;render()}});
+
 $('#famBtn').onclick=()=>{armed=null;renderFam();$('#dlgFam').showModal()};
 $('#famClose').onclick=()=>$('#dlgFam').close();
 $('#addf').addEventListener('submit',e=>{e.preventDefault();const v=$('#addn').value.trim();if(!v)return;const id='m'+makeCode().slice(0,10);api.saveMember(id,{name:v,order:Date.now()});$('#addn').value='';$('#addn').focus()});
@@ -280,6 +341,7 @@ else{
  if(!FIREBASE_CONFIG)note('Proefmodus: nog niet gekoppeld aan de gedeelde opslag. Gegevens blijven op dit apparaat.');
  api.watchMembers(list=>{members=list.filter(m=>typeof m.name==='string').sort((a,b)=>(a.order||0)-(b.order||0));render()});
  openWeek();
+ api.watchMsgs(list=>{msgs=list;renderMsgs()});
 }
 </script>
 </body>

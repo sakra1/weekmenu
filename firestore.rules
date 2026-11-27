@@ -7,6 +7,13 @@ service cloud.firestore {
         allow get, list, create, update: if code.size() >= 24
           && wk.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
       }
+      match /berichten/{id} {
+        allow get, list: if code.size() >= 24;
+        allow create: if code.size() >= 24
+          && request.resource.data.keys().hasOnly(['m', 'tekst', 't'])
+          && request.resource.data.tekst is string
+          && request.resource.data.tekst.size() <= 300;
+      }
     }
   }
 }
