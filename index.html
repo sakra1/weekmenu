@@ -179,6 +179,7 @@ const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const fridayOf=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+2)%7));return x};
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
+const WEEK_MS=7*24*3600*1000;
 const note=t=>{$('#note').textContent=t||''};
 const cnote=t=>{$('#cnote').textContent=t||''};
 
@@ -216,7 +217,7 @@ async function firebaseApi(cfg,code){
   setAtt(k,d,m,s){merge(wref(k),{att:{[d+'_'+m]:s||F.deleteField()}})},
   saveMember(id,v){merge(fam,{members:{[id]:v}})},
   delMember(id){merge(fam,{members:{[id]:F.deleteField()}})},
-  watchMsgs(cb){const col=F.collection(db,'gezin',code,'berichten');F.onSnapshot(F.query(col,F.orderBy('t','desc'),F.limit(30)),s=>{cnote('');cb(s.docs.map(d=>d.data()))},e=>{console.error(e);cnote(e&&e.code==='permission-denied'?'Berichten staan nog niet aan: de Firebase-regels moeten nog worden bijgewerkt.':'Berichten konden niet worden geladen.')})},
+  watchMsgs(cb){const col=F.collection(db,'gezin',code,'berichten');const cut=Date.now()-WEEK_MS;F.getDocs(F.query(col,F.where('t','<',cut),F.limit(50))).then(o=>o.docs.forEach(d=>F.deleteDoc(d.ref).catch(()=>{}))).catch(()=>{});F.onSnapshot(F.query(col,F.where('t','>',cut),F.orderBy('t','desc'),F.limit(30)),s=>{cnote('');cb(s.docs.map(d=>d.data()))},e=>{console.error(e);cnote(e&&e.code==='permission-denied'?'Berichten staan nog niet aan: de Firebase-regels moeten nog worden bijgewerkt.':'Berichten konden niet worden geladen.')})},
   send(m,tekst){return F.addDoc(F.collection(db,'gezin',code,'berichten'),{m,tekst,t:Date.now()}).then(()=>true,e=>{console.error(e);cnote(e&&e.code==='permission-denied'?'Versturen mag nog niet: de Firebase-regels moeten nog worden bijgewerkt.':'Versturen lukte niet. Controleer je verbinding.');return false})}
  };
 }
@@ -235,7 +236,7 @@ function localApi(){
   setAtt(k,d,m,s){if(s)W(k).att[d+'_'+m]=s;else delete W(k).att[d+'_'+m];save();emitW()},
   saveMember(id,v){S.members[id]=v;save();emitM()},
   delMember(id){delete S.members[id];save();emitM()},
-  watchMsgs(cb){S.msgs=S.msgs||[];fmsg=cb;cb(S.msgs.slice(-30).reverse())},
+  watchMsgs(cb){S.msgs=(S.msgs||[]).filter(x=>x.t>Date.now()-WEEK_MS);fmsg=cb;cb(S.msgs.slice(-30).reverse())},
   send(m,tekst){S.msgs=S.msgs||[];S.msgs.push({m,tekst,t:Date.now()});save();fmsg&&fmsg(S.msgs.slice(-30).reverse());return Promise.resolve(true)}
  };
 }
@@ -299,7 +300,7 @@ function when(t){const d=new Date(t),now=new Date(),hm=pad(d.getHours())+':'+pad
  if(ymd(d)===ymd(now))return hm;if(ymd(d)===ymd(addDays(now,-1)))return 'gisteren '+hm;
  return ['zo','ma','di','wo','do','vr','za'][d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]+' '+hm}
 function renderMsgs(){
- const list=msgs.filter(x=>x&&typeof x.tekst==='string'&&typeof x.t==='number').slice().reverse();
+ const list=msgs.filter(x=>x&&typeof x.tekst==='string'&&typeof x.t==='number').filter(x=>x.t>Date.now()-WEEK_MS).slice().reverse();
  const shown=showAll?list:list.slice(-4);
  $('#more').hidden=list.length<=4;$('#more').textContent=showAll?'Minder':'Ouder';
  $('#msgs').innerHTML=shown.length?shown.map(x=>`<li><b>${esc(nameOf(x.m))}</b>: ${esc(x.tekst)}<time>${esc(when(x.t))}</time></li>`).join(''):'<li class="empty">Nog geen berichten.</li>';
@@ -333,7 +334,7 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27e';
+const APP_VERSION='2026-11-27f';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);

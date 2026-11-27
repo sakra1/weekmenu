@@ -13,6 +13,8 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['m', 'tekst', 't'])
           && request.resource.data.tekst is string
           && request.resource.data.tekst.size() <= 300;
+        allow delete: if code.size() >= 24
+          && resource.data.t < request.time.toMillis() - 604800000;
       }
     }
   }
