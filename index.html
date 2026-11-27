@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#d93a24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Weekmenu">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Weekmenu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: huiselijk en kort, een briefje voor de kok.
+   IDEA: het weekbord op de koelkast: zeven regels, per regel het gerecht en een vakje per gezinslid.
+   PICTURE: het rooster zelf, met grote tomaatrode getallen: voor hoeveel man koken.
+   COLOUR and TYPE: wit bord, donkere stift, tomaatrood voor het aantal, botergeel voor laat; Caveat voor gerechten, Figtree voor de rest.
+   LAYOUT: één scherm: kopregel met week, rooster van zeven rijen, legenda en knoppen eronder. */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#141312);--card:light-dark(#fbfaf8,#1d1c1a);--ink:light-dark(#1f1d1b,#f1eee9);--mute:light-dark(#6d6862,#a39d95);--line:light-dark(#e6e2dc,#33302c);--tom:light-dark(#d93a24,#ff6a52);--but:#f5c542;--butink:#2a2208;--off:light-dark(#efece8,#2a2825);--cw:42px}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 Figtree,system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:760px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--tom);outline-offset:2px}
+.top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+h1{font-size:30px;line-height:1.05;margin:0;font-weight:800;flex:1}
+h1 small{display:block;font-size:15px;font-weight:600;color:var(--mute);margin-top:3px}
+.ib{min-width:44px;height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);cursor:pointer;font-size:20px;font-weight:600;padding:0 10px}
+.ib.txt{font-size:15px}
+.note{margin:0 0 10px;padding:8px 12px;border-radius:10px;background:var(--off);font-size:14px}
+.note:empty{display:none}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 40px repeat(var(--n),var(--cw));border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+.grid>*{border-top:1px solid var(--line);min-height:56px;display:flex;align-items:center}
+.hd{border-top:0;min-height:34px;font-size:12px;font-weight:600;color:var(--mute);justify-content:center;padding:0 2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;line-height:34px;text-align:center}
+.hd.l{text-align:left;padding-left:12px}
+.dayc{flex-direction:column;align-items:stretch;justify-content:center;padding:6px 8px 6px 12px;text-align:left;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer}
+.dayc b{font-size:13px;font-weight:600;color:var(--mute)}
+.dayc span{font:700 20px/1.05 Caveat,cursive;overflow-wrap:break-word;hyphens:auto}
+.dayc span.no{font:400 14px/1.3 Figtree,sans-serif;color:var(--mute);opacity:.7}
+.grid .today{background:light-dark(#fff6dc,#2b2614)}
+.dayc.today b{color:var(--ink)}
+.cnt{flex-direction:column;justify-content:center;line-height:1}
+.cnt b{font-size:28px;font-weight:800;color:var(--tom);font-variant-numeric:tabular-nums}
+.cnt i{font-style:normal;font-size:11px;color:var(--mute);margin-top:2px;white-space:nowrap}
+.st{justify-content:center;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;padding:0}
+.st span{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:15px;font-weight:800;border:1.5px dashed var(--line);color:var(--mute)}
+.st[data-v=thuis] span{background:var(--ink);border:0;color:var(--bg)}
+.st[data-v=laat] span{background:var(--but);border:0;color:var(--butink)}
+.st[data-v=niet] span{background:var(--off);border:0;color:var(--mute)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 2px 0;font-size:13px;color:var(--mute);align-items:center}
+.legend .st{display:inline-flex;min-height:0;border:0;cursor:default}
+.legend .st span{width:22px;height:22px;font-size:11px}
+.legend>div{display:flex;align-items:center;gap:5px}
+.who{margin:14px 2px 0;font-size:14px;color:var(--mute)}
+.who strong{color:var(--ink)}
+.acts{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);cursor:pointer;font-weight:600}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.warn{background:var(--tom);border-color:var(--tom);color:#fff}
+dialog{border:0;border-radius:18px;padding:20px;width:min(94vw,440px);background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(20,18,16,.45)}
+dialog h2{margin:0 0 4px;font-size:22px}
+dialog p{margin:0 0 12px;color:var(--mute);font-size:15px}
+.in{width:100%;min-height:46px;padding:0 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px}
+.dish{font:700 26px Caveat,cursive}
+.row{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap}
+.fr{display:flex;gap:8px;margin-bottom:8px}
+.fr .in{flex:1}
+.link{word-break:break-all;font-size:14px;padding:10px 12px;background:var(--off);border-radius:10px;margin-bottom:8px;user-select:all}
+.gate{max-width:420px;margin:12vh auto 0;text-align:center}
+.gate h1{margin-bottom:10px}
+.gate p{color:var(--mute)}
+[hidden]{display:none!important}
+@media(min-width:640px){:root{--cw:66px}.dayc span{font-size:23px}}
+@media(max-width:380px){:root{--cw:36px}.dayc{padding-left:8px}.cnt b{font-size:24px}}
+@media(prefers-reduced-motion:no-preference){.st span{transition:transform .12s}.st:active span{transform:scale(.88)}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" hidden>
+ <div class="top">
+  <button class="ib" id="prev" aria-label="Vorige week">‹</button>
+  <h1 id="title">Weekmenu<small id="range"></small></h1>
+  <button class="ib txt" id="now" hidden>Nu</button>
+  <button class="ib" id="next" aria-label="Volgende week">›</button>
+ </div>
+ <p class="note" id="note">Laden…</p>
+ <div class="grid" id="grid"></div>
+ <div class="legend">
+  <div><span class="st" data-v="thuis"><span>✓</span></span>thuis</div>
+  <div><span class="st" data-v="laat"><span>L</span></span>later</div>
+  <div><span class="st" data-v="niet"><span>✕</span></span>eet niet mee</div>
+  <div><span class="st"><span>?</span></span>nog niet ingevuld</div>
+ </div>
+ <p class="who" id="who"></p>
+ <div class="acts">
+  <button class="btn" id="famBtn">Gezin bewerken</button>
+  <button class="btn" id="shareBtn">Link delen</button>
+ </div>
+</div>
+
+<div class="gate" id="gate" hidden>
+ <h1>Weekmenu</h1>
+ <p>Deze pagina is alleen voor ons gezin. Open de link die je hebt gekregen.</p>
+ <button class="btn" id="newCode">Nieuwe gezinscode maken</button>
+</div>
+
+<dialog id="dlgMenu">
+ <form method="dialog" id="menuForm">
+  <h2 id="menuDay"></h2>
+  <p>Wat eten we?</p>
+  <input class="in dish" id="menuIn" maxlength="80" autocomplete="off" placeholder="bijv. stamppot">
+  <div class="row"><button class="btn" value="cancel" type="submit" formnovalidate>Annuleren</button><button class="btn pri" value="ok" type="submit">Opslaan</button></div>
+ </form>
+</dialog>
+
+<dialog id="dlgFam">
+ <h2>Gezin</h2>
+ <p>Namen staan in het rooster als kolommen. Korte namen passen het best.</p>
+ <div id="flist"></div>
+ <form class="fr" id="addf"><input class="in" id="addn" maxlength="30" placeholder="Naam toevoegen" aria-label="Naam toevoegen"><button class="btn" type="submit">Toevoegen</button></form>
+ <div class="row"><button class="btn pri" id="famClose">Klaar</button></div>
+</dialog>
+
+<dialog id="dlgShare">
+ <h2>Link delen</h2>
+ <p>Iedereen met deze link kan het weekmenu zien en invullen. Deel hem alleen met het gezin. Op de telefoon: open de link en kies "Zet op beginscherm".</p>
+ <div class="link" id="shareLink"></div>
+ <div class="row"><button class="btn" id="copyBtn">Kopiëren</button><button class="btn pri" id="shareClose">Klaar</button></div>
+</dialog>
+
+<script type="module">
+/* Firebase-gegevens (niet geheim). Zet op null voor proefmodus op alleen dit apparaat. */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCuOwfdehSZmUj0vm60yKS_fjrd-9tFero",
+  authDomain: "weekmenu-814a6.firebaseapp.com",
+  projectId: "weekmenu-814a6",
+  storageBucket: "weekmenu-814a6.firebasestorage.app",
+  messagingSenderId: "897581002747",
+  appId: "1:897581002747:web:544ac4731319acd88e255e"
+};
+const FB = 'https://www.gstatic.com/firebasejs/13.2.0/';
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAYS=['Vrijdag','Zaterdag','Zondag','Maandag','Dinsdag','Woensdag','Donderdag'];
+const MON=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const NEXT={'':'thuis',thuis:'laat',laat:'niet',niet:''};
+const SYM={thuis:'✓',laat:'L',niet:'✕','':'?'};
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fridayOf=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+2)%7));return x};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
+const note=t=>{$('#note').textContent=t||''};
+
+let week=fridayOf(new Date()),wk=ymd(week),code='';
+let members=[],menu={},att={},api=null,unsubWeek=null,editDay=0,armed=null;
+
+/* ---------- gezinscode uit de link, of eerder bewaard ---------- */
+const CODE_RE=/^[a-z0-9]{24,64}$/;
+function readCode(){
+ const h=decodeURIComponent(location.hash.slice(1)).trim().toLowerCase();
+ if(CODE_RE.test(h)){try{localStorage.setItem('weekmenu-code',h)}catch(e){}return h}
+ try{const s=localStorage.getItem('weekmenu-code');if(s&&CODE_RE.test(s)){history.replaceState(null,'','#'+s);return s}}catch(e){}
+ return '';
+}
+function makeCode(){const a='abcdefghijkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint8Array(28));return [...r].map(x=>a[x%a.length]).join('')}
+
+/* ---------- opslag ---------- */
+async function firebaseApi(cfg,code){
+ const [{initializeApp},F]=await Promise.all([import(FB+'firebase-app.js'),import(FB+'firebase-firestore.js')]);
+ const app=initializeApp(cfg);
+ let db;try{db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})})}catch(e){db=F.getFirestore(app)}
+ const fam=F.doc(db,'gezin',code),wref=k=>F.doc(db,'gezin',code,'weken',k);
+ const fail=e=>{console.error(e);note(e&&e.code==='permission-denied'?'Geen toegang: controleer de link.':'Opslaan lukte niet. Controleer je verbinding.')};
+ const merge=(ref,data)=>F.setDoc(ref,data,{merge:true}).catch(fail);
+ let loaded=false;const timer=setTimeout(()=>{if(!loaded)note('Nog geen verbinding. Wat je invult wordt bewaard en later verstuurd.')},10000);
+ const ok=s=>{if(!s.metadata.fromCache&&!loaded){loaded=true;clearTimeout(timer);note('')}};
+ return{
+  watchMembers(cb){F.onSnapshot(fam,{includeMetadataChanges:true},s=>{ok(s);const m=(s.data()||{}).members||{};cb(Object.entries(m).filter(([,v])=>v).map(([id,v])=>({id,...v})))},fail)},
+  watchWeek(k,cb){return F.onSnapshot(wref(k),{includeMetadataChanges:true},s=>{ok(s);const d=s.data()||{};cb(d.menu||{},d.att||{})},fail)},
+  setMenu(k,d,dish){merge(wref(k),{menu:{[d]:dish||F.deleteField()}})},
+  setAtt(k,d,m,s){merge(wref(k),{att:{[d+'_'+m]:s||F.deleteField()}})},
+  saveMember(id,v){merge(fam,{members:{[id]:v}})},
+  delMember(id){merge(fam,{members:{[id]:F.deleteField()}})}
+ };
+}
+function localApi(){
+ const K='weekmenu-proef';let S;try{S=JSON.parse(localStorage.getItem(K))||{}}catch(e){S={}}
+ S.members=S.members||{};S.weeks=S.weeks||{};
+ let fm=null,fw=null,cur='';
+ const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+ const W=k=>S.weeks[k]=S.weeks[k]||{menu:{},att:{}};
+ const emitM=()=>fm&&fm(Object.entries(S.members).map(([id,v])=>({id,...v})));
+ const emitW=()=>{if(fw){const w=S.weeks[cur]||{};fw(w.menu||{},w.att||{})}};
+ return{
+  watchMembers(cb){fm=cb;emitM()},
+  watchWeek(k,cb){cur=k;fw=cb;emitW();return()=>{fw=null}},
+  setMenu(k,d,v){if(v)W(k).menu[d]=v;else delete W(k).menu[d];save();emitW()},
+  setAtt(k,d,m,s){if(s)W(k).att[d+'_'+m]=s;else delete W(k).att[d+'_'+m];save();emitW()},
+  saveMember(id,v){S.members[id]=v;save();emitM()},
+  delMember(id){delete S.members[id];save();emitM()}
+ };
+}
+
+/* ---------- weergave ---------- */
+const st=(d,m)=>{const v=att[d+'_'+m];return NEXT[v]!==undefined&&v?v:''};
+function render(){
+ const today=ymd(new Date()),end=addDays(week,6),thisWeek=ymd(fridayOf(new Date()))===wk;
+ $('#range').textContent=`vr ${fmt(week)} – do ${fmt(end)}`;
+ $('#now').hidden=thisWeek;
+ const g=$('#grid');g.style.gridTemplateColumns=`minmax(0,1fr) 40px${members.length?` repeat(${members.length},var(--cw))`:''}`;
+ let h=`<div class="hd l">Menu</div><div class="hd">Eters</div>`+members.map(m=>`<div class="hd" title="${esc(m.name)}">${esc(m.name)}</div>`).join('');
+ let todayIdx=-1;
+ for(let d=0;d<7;d++){
+  const date=addDays(week,d),isT=ymd(date)===today;if(isT)todayIdx=d;
+  const t=isT?' today':'',dish=String(menu[d]||'');
+  let n=0,open=0;for(const m of members){const s=st(d,m.id);if(s==='thuis'||s==='laat')n++;else if(!s)open++}
+  h+=`<button class="dayc${t}" data-day="${d}" aria-label="Menu ${DAYS[d].toLowerCase()} aanpassen"><b>${DAYS[d].slice(0,2)} ${date.getDate()}</b>${dish?`<span>${esc(dish)}</span>`:'<span class="no">menu invullen</span>'}</button>`;
+  h+=`<div class="cnt${t}"><b>${members.length?n:'–'}</b>${open&&members.length?`<i>+${open} ?</i>`:''}</div>`;
+  h+=members.map(m=>{const s=st(d,m.id);return `<button class="st${t}" data-d="${d}" data-m="${esc(m.id)}" data-v="${s}" aria-label="${esc(m.name)} ${DAYS[d].toLowerCase()}: ${s||'onbekend'}"><span>${SYM[s]}</span></button>`}).join('');
+ }
+ g.innerHTML=h;
+ // wie verwachten we vandaag (of vrijdag als we een andere week bekijken)
+ const d=todayIdx>=0?todayIdx:0,grp={thuis:[],laat:[],niet:[],'':[]};
+ for(const m of members)grp[st(d,m.id)].push(esc(m.name));
+ const parts=[];
+ if(grp.thuis.length)parts.push(`<strong>Thuis:</strong> ${grp.thuis.join(', ')}`);
+ if(grp.laat.length)parts.push(`<strong>Later:</strong> ${grp.laat.join(', ')}`);
+ if(grp.niet.length)parts.push(`<strong>Eet niet mee:</strong> ${grp.niet.join(', ')}`);
+ if(grp[''].length)parts.push(`<strong>Nog niet ingevuld:</strong> ${grp[''].join(', ')}`);
+ $('#who').innerHTML=members.length?`${todayIdx>=0?'Vandaag':DAYS[0]}: `+parts.join(' · '):'Voeg eerst de gezinsleden toe via "Gezin bewerken".';
+ renderFam();
+}
+function renderFam(){
+ $('#flist').innerHTML=members.map(m=>`<div class="fr"><input class="in" data-fid="${esc(m.id)}" value="${esc(m.name)}" maxlength="30" aria-label="Naam"><button class="btn${armed===m.id?' warn':''}" data-del="${esc(m.id)}">${armed===m.id?'Zeker?':'Weg'}</button></div>`).join('');
+}
+function openWeek(){
+ wk=ymd(week);menu={};att={};
+ if(unsubWeek)unsubWeek();
+ unsubWeek=api.watchWeek(wk,(m,a)=>{menu=m;att=a;render()});
+ render();
+}
+
+/* ---------- invoer ---------- */
+$('#prev').onclick=()=>{week=addDays(week,-7);openWeek()};
+$('#next').onclick=()=>{week=addDays(week,7);openWeek()};
+$('#now').onclick=()=>{week=fridayOf(new Date());openWeek()};
+$('#grid').addEventListener('click',e=>{
+ const b=e.target.closest('.st');
+ if(b){const d=+b.dataset.d,m=b.dataset.m,s=NEXT[st(d,m)];if(s)att[d+'_'+m]=s;else delete att[d+'_'+m];render();api.setAtt(wk,d,m,s);return}
+ const c=e.target.closest('.dayc');
+ if(c){editDay=+c.dataset.day;$('#menuDay').textContent=`${DAYS[editDay]} ${fmt(addDays(week,editDay))}`;$('#menuIn').value=menu[editDay]||'';$('#dlgMenu').showModal();$('#menuIn').focus()}
+});
+$('#dlgMenu').addEventListener('close',()=>{if($('#dlgMenu').returnValue!=='ok')return;const v=$('#menuIn').value.trim();if((menu[editDay]||'')!==v){if(v)menu[editDay]=v;else delete menu[editDay];render();api.setMenu(wk,editDay,v)}});
+$('#famBtn').onclick=()=>{armed=null;renderFam();$('#dlgFam').showModal()};
+$('#famClose').onclick=()=>$('#dlgFam').close();
+$('#addf').addEventListener('submit',e=>{e.preventDefault();const v=$('#addn').value.trim();if(!v)return;const id='m'+makeCode().slice(0,10);api.saveMember(id,{name:v,order:Date.now()});$('#addn').value='';$('#addn').focus()});
+$('#flist').addEventListener('change',e=>{const t=e.target,m=members.find(x=>x.id===t.dataset.fid);if(!m)return;const v=t.value.trim();if(v&&v!==m.name)api.saveMember(m.id,{name:v,order:m.order||0});else t.value=m.name});
+$('#flist').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const id=b.dataset.del;if(armed===id){armed=null;api.delMember(id)}else{armed=id;renderFam();setTimeout(()=>{if(armed===id){armed=null;renderFam()}},4000)}});
+const link=()=>location.origin+location.pathname+'#'+code;
+$('#shareBtn').onclick=()=>{$('#shareLink').textContent=link();$('#copyBtn').textContent='Kopiëren';$('#dlgShare').showModal()};
+$('#shareClose').onclick=()=>$('#dlgShare').close();
+$('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(link());$('#copyBtn').textContent='Gekopieerd'}catch(e){$('#copyBtn').textContent='Selecteer en kopieer de link'}};
+$('#newCode').onclick=()=>{location.hash=makeCode();location.reload()};
+addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
+
+/* ---------- start ---------- */
+code=readCode();
+if(!code&&FIREBASE_CONFIG){$('#gate').hidden=false}
+else{
+ $('#app').hidden=false;
+ try{api=FIREBASE_CONFIG?await firebaseApi(FIREBASE_CONFIG,code):localApi()}
+ catch(e){console.error(e);api=localApi();note('Kan de gedeelde lijst niet laden. Wat je nu invult blijft alleen op dit apparaat.')}
+ if(!FIREBASE_CONFIG)note('Proefmodus: nog niet gekoppeld aan de gedeelde opslag. Gegevens blijven op dit apparaat.');
+ api.watchMembers(list=>{members=list.filter(m=>typeof m.name==='string').sort((a,b)=>(a.order||0)-(b.order||0));render()});
+ openWeek();
+}
+</script>
+</body>
+</html>
