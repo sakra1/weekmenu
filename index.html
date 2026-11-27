@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Weekmenu">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="manifest" href="manifest.webmanifest">
 <title>Weekmenu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
@@ -161,10 +160,14 @@ let members=[],menu={},att={},api=null,unsubWeek=null,editDay=0,armed=null;
 /* ---------- gezinscode uit de link, of eerder bewaard ---------- */
 const CODE_RE=/^[a-z0-9]{24,64}$/;
 function readCode(){
+ // code staat in ?g=… (blijft bewaard bij "Zet op beginscherm"); oude links met #… werken ook
+ const q=(new URLSearchParams(location.search).get('g')||'').trim().toLowerCase();
  const h=decodeURIComponent(location.hash.slice(1)).trim().toLowerCase();
- if(CODE_RE.test(h)){try{localStorage.setItem('weekmenu-code',h)}catch(e){}return h}
- try{const s=localStorage.getItem('weekmenu-code');if(s&&CODE_RE.test(s)){history.replaceState(null,'','#'+s);return s}}catch(e){}
- return '';
+ let c=CODE_RE.test(q)?q:CODE_RE.test(h)?h:'';
+ if(!c){try{const s=localStorage.getItem('weekmenu-code');if(s&&CODE_RE.test(s))c=s}catch(e){}}
+ if(c){try{localStorage.setItem('weekmenu-code',c)}catch(e){}
+  const want=location.pathname+'?g='+c;if(location.pathname+location.search+location.hash!==want)history.replaceState(null,'',want)}
+ return c;
 }
 function makeCode(){const a='abcdefghijkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint8Array(28));return [...r].map(x=>a[x%a.length]).join('')}
 
@@ -260,11 +263,11 @@ $('#famClose').onclick=()=>$('#dlgFam').close();
 $('#addf').addEventListener('submit',e=>{e.preventDefault();const v=$('#addn').value.trim();if(!v)return;const id='m'+makeCode().slice(0,10);api.saveMember(id,{name:v,order:Date.now()});$('#addn').value='';$('#addn').focus()});
 $('#flist').addEventListener('change',e=>{const t=e.target,m=members.find(x=>x.id===t.dataset.fid);if(!m)return;const v=t.value.trim();if(v&&v!==m.name)api.saveMember(m.id,{name:v,order:m.order||0});else t.value=m.name});
 $('#flist').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const id=b.dataset.del;if(armed===id){armed=null;api.delMember(id)}else{armed=id;renderFam();setTimeout(()=>{if(armed===id){armed=null;renderFam()}},4000)}});
-const link=()=>location.origin+location.pathname+'#'+code;
+const link=()=>location.origin+location.pathname+'?g='+code;
 $('#shareBtn').onclick=()=>{$('#shareLink').textContent=link();$('#copyBtn').textContent='Kopiëren';$('#dlgShare').showModal()};
 $('#shareClose').onclick=()=>$('#dlgShare').close();
 $('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(link());$('#copyBtn').textContent='Gekopieerd'}catch(e){$('#copyBtn').textContent='Selecteer en kopieer de link'}};
-$('#newCode').onclick=()=>{location.hash=makeCode();location.reload()};
+$('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- start ---------- */
