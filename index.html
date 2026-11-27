@@ -44,6 +44,10 @@ h1 small{display:block;font-size:15px;font-weight:600;color:rgba(255,255,255,.88
 .cnt b{font-size:25px;font-weight:800;color:var(--tom);font-variant-numeric:tabular-nums}
 .cnt i{font-style:normal;font-size:11px;color:var(--mute);margin-top:2px;white-space:nowrap}
 .st{justify-content:center;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;padding:0}
+.grid .mine:not(.today){background:light-dark(#fff1e4,#2c2119)}
+.hd.mine{color:var(--tom);font-weight:800}
+.whol{display:grid;gap:8px;margin-bottom:4px}
+.whol .btn{width:100%}
 .st span{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;font-size:15px;font-weight:800;border:1.5px dashed var(--line);color:var(--mute)}
 .st[data-v=thuis] span{background:var(--grn);border:0;color:#fff}
 .st[data-v=laat] span{background:var(--yel);border:0;color:var(--butink)}
@@ -154,6 +158,19 @@ dialog p{margin:0 0 12px;color:var(--mute);font-size:15px}
  <div class="row"><button class="btn pri" id="famClose">Klaar</button></div>
 </dialog>
 
+<dialog id="dlgWho">
+ <h2>Wie ben jij?</h2>
+ <p>Dan kun je je eigen kolom direct invullen. Deze telefoon onthoudt het.</p>
+ <div class="whol" id="whoList"></div>
+ <div class="row"><button class="btn" id="whoCancel" type="button">Annuleren</button></div>
+</dialog>
+
+<dialog id="dlgConf">
+ <h2>Iemand anders aanpassen?</h2>
+ <p id="confTxt"></p>
+ <div class="row"><button class="btn" id="confNo" type="button">Annuleren</button><button class="btn pri" id="confOk" type="button">Ja, wijzig</button></div>
+</dialog>
+
 <dialog id="dlgShare">
  <h2>Link delen</h2>
  <p>Iedereen met deze link kan het weekmenu zien en invullen. Deel hem alleen met het gezin. Op de telefoon: open de link en kies "Zet op beginscherm".</p>
@@ -256,7 +273,7 @@ function render(){
  $('#range').textContent=`vr ${fmt(week)} – do ${fmt(end)}`;
  $('#now').hidden=thisWeek;
  const g=$('#grid');g.style.gridTemplateColumns=`minmax(0,1fr) 34px${members.length?` repeat(${members.length},var(--cw))`:''}`;
- let h=`<div class="hd l">Menu</div><div class="hd">Eters</div>`+members.map(m=>`<div class="hd" title="${esc(m.name)}">${esc(m.name)}</div>`).join('');
+ let h=`<div class="hd l">Menu</div><div class="hd">Eters</div>`+members.map(m=>`<div class="hd${m.id===me?' mine':''}" title="${esc(m.name)}">${esc(m.name)}</div>`).join('');
  let todayIdx=-1;
  for(let d=0;d<7;d++){
   const date=addDays(week,d),isT=ymd(date)===today;if(isT)todayIdx=d;
@@ -264,7 +281,7 @@ function render(){
   let n=0,open=0;for(const m of members){const s=st(d,m.id);if(s==='thuis'||s==='laat')n++;else if(!s)open++}
   h+=`<button class="dayc${t}" data-day="${d}" aria-label="Menu ${DAYS[d].toLowerCase()} aanpassen"><b>${DAYS[d].slice(0,2)} ${date.getDate()}</b>${dish?`<span>${esc(dish)}</span>`:'<span class="no">menu invullen</span>'}</button>`;
   h+=`<div class="cnt${t}"><b>${members.length?n:'–'}</b>${open&&members.length?`<i>+${open} ?</i>`:''}</div>`;
-  h+=members.map(m=>{const s=st(d,m.id);return `<button class="st${t}" data-d="${d}" data-m="${esc(m.id)}" data-v="${s}" aria-label="${esc(m.name)} ${DAYS[d].toLowerCase()}: ${s||'onbekend'}"><span>${SYM[s]}</span></button>`}).join('');
+  h+=members.map(m=>{const s=st(d,m.id);return `<button class="st${t}${m.id===me?' mine':''}" data-d="${d}" data-m="${esc(m.id)}" data-v="${s}" aria-label="${esc(m.name)} ${DAYS[d].toLowerCase()}: ${s||'onbekend'}"><span>${SYM[s]}</span></button>`}).join('');
  }
  g.innerHTML=h;
  // wie verwachten we vandaag (of vrijdag als we een andere week bekijken)
@@ -293,9 +310,23 @@ function openWeek(){
 $('#prev').onclick=()=>{week=addDays(week,-7);openWeek()};
 $('#next').onclick=()=>{week=addDays(week,7);openWeek()};
 $('#now').onclick=()=>{week=fridayOf(new Date());openWeek()};
+function doCell(d,m){const s=NEXT[st(d,m)];if(s)att[d+'_'+m]=s;else delete att[d+'_'+m];render();api.setAtt(wk,d,m,s)}
+let pending=null;
+function tapCell(d,m){
+ if(!me||!members.some(x=>x.id===me)){pending={d,m};
+  $('#whoList').innerHTML=members.map(x=>`<button class="btn" type="button" data-who="${esc(x.id)}">${esc(x.name)}</button>`).join('');$('#dlgWho').showModal();return}
+ if(m===me){doCell(d,m);return}
+ pending={d,m};const s=NEXT[st(d,m)];
+ $('#confTxt').textContent=`Je past ${nameOf(m)} aan voor ${DAYS[d].toLowerCase()}: ${s?{thuis:'thuis',laat:'later',niet:'eet niet mee'}[s]:'leeg'}.`;
+ $('#dlgConf').showModal();
+}
+$('#whoList').addEventListener('click',e=>{const b=e.target.closest('[data-who]');if(!b)return;me=b.dataset.who;try{localStorage.setItem('weekmenu-ik',me)}catch(x){}$('#dlgWho').close();render();if(pending){const p=pending;pending=null;tapCell(p.d,p.m)}});
+$('#whoCancel').onclick=()=>{pending=null;$('#dlgWho').close()};
+$('#confOk').onclick=()=>{$('#dlgConf').close();if(pending){const p=pending;pending=null;doCell(p.d,p.m)}};
+$('#confNo').onclick=()=>{pending=null;$('#dlgConf').close()};
 $('#grid').addEventListener('click',e=>{
  const b=e.target.closest('.st');
- if(b){const d=+b.dataset.d,m=b.dataset.m,s=NEXT[st(d,m)];if(s)att[d+'_'+m]=s;else delete att[d+'_'+m];render();api.setAtt(wk,d,m,s);return}
+ if(b){tapCell(+b.dataset.d,b.dataset.m);return}
  const c=e.target.closest('.dayc');
  if(c){editDay=+c.dataset.day;$('#menuDay').textContent=`${DAYS[editDay]} ${fmt(addDays(week,editDay))}`;$('#menuIn').value=dishOf(editDay);$('#dlgMenu').showModal();$('#menuIn').focus()}
 });
@@ -329,7 +360,7 @@ function renderMe(){
  sel.innerHTML='<option value="">Wie ben jij?</option>'+members.map(m=>`<option value="${esc(m.id)}"${m.id===me?' selected':''}>${esc(m.name)}</option>`).join('');
  renderMsgs();
 }
-$('#me').addEventListener('change',e=>{me=e.target.value;try{localStorage.setItem('weekmenu-ik',me)}catch(x){}});
+$('#me').addEventListener('change',e=>{me=e.target.value;try{localStorage.setItem('weekmenu-ik',me)}catch(x){}render()});
 $('#more').onclick=()=>{showAll=!showAll;renderMsgs()};
 async function sendMsg(tekst){
  if(!me||!members.some(m=>m.id===me)){cnote('Kies eerst wie je bent.');$('#me').focus();return false}
@@ -353,7 +384,7 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27i';
+const APP_VERSION='2026-11-27j';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);
