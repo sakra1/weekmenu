@@ -59,7 +59,10 @@ h1 small{display:block;font-size:15px;font-weight:600;color:rgba(255,255,255,.88
 .chat h2{font-size:17px;margin:0 0 6px;display:flex;justify-content:space-between;align-items:baseline}
 .chat h2 button{border:0;background:none;color:var(--mute);font:600 13px Figtree,sans-serif;cursor:pointer;min-height:32px}
 .msgs{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.msgs li{font-size:15px;line-height:1.35;overflow-wrap:break-word}
+.msgs li{font-size:15px;line-height:1.35;overflow-wrap:break-word;border-radius:8px;padding:2px 6px;margin:0 -6px}
+.msgs li.new{background:light-dark(#ffe9e4,#3a211b)}
+.dot{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--red);color:#fff;font-size:12px;font-weight:800;margin-left:6px;vertical-align:2px}
+.pill{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:5;border:0;border-radius:99px;background:var(--red);color:#fff;font:700 15px Figtree,sans-serif;min-height:44px;padding:0 18px;box-shadow:0 6px 18px rgba(239,68,68,.4);cursor:pointer}
 .msgs b{font-weight:600}
 .msgs time{color:var(--mute);font-size:12px;margin-left:6px;white-space:nowrap}
 .msgs .empty{color:var(--mute);font-size:14px}
@@ -109,8 +112,8 @@ dialog p{margin:0 0 12px;color:var(--mute);font-size:15px}
   <div><span class="st"><span>?</span></span>nog niet ingevuld</div>
  </div>
  <p class="who" id="who"></p>
- <section class="chat" aria-label="Berichten">
-  <h2>Berichten <button id="more" hidden>Ouder</button></h2>
+ <section class="chat" id="chat" aria-label="Berichten">
+  <h2><span>Berichten<span class="dot" id="dot" hidden></span></span> <button id="more" hidden>Ouder</button></h2>
   <ol class="msgs" id="msgs"><li class="empty">Nog geen berichten.</li></ol>
   <p class="cnote" id="cnote"></p>
   <form class="send" id="sendf">
@@ -131,6 +134,8 @@ dialog p{margin:0 0 12px;color:var(--mute);font-size:15px}
  <p>Deze pagina is alleen voor ons gezin. Open de link die je hebt gekregen.</p>
  <button class="btn" id="newCode">Nieuwe gezinscode maken</button>
 </div>
+
+<button class="pill" id="pill" hidden></button>
 
 <dialog id="dlgMenu">
  <form method="dialog" id="menuForm">
@@ -299,11 +304,22 @@ const nameOf=id=>(members.find(m=>m.id===id)||{}).name||'Iemand';
 function when(t){const d=new Date(t),now=new Date(),hm=pad(d.getHours())+':'+pad(d.getMinutes());
  if(ymd(d)===ymd(now))return hm;if(ymd(d)===ymd(addDays(now,-1)))return 'gisteren '+hm;
  return ['zo','ma','di','wo','do','vr','za'][d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]+' '+hm}
+let seen=0,chatVisible=false,seenTimer=null;try{seen=+localStorage.getItem('weekmenu-gezien')||0}catch(e){}
+const unread=list=>list.filter(x=>x.t>seen&&x.m!==me);
+function markSeen(){const mx=Math.max(seen,...msgs.map(x=>typeof x.t==='number'?x.t:0));if(mx>seen){seen=mx;try{localStorage.setItem('weekmenu-gezien',String(seen))}catch(e){}}}
+function scheduleSeen(){clearTimeout(seenTimer);if(chatVisible&&!document.hidden)seenTimer=setTimeout(()=>{markSeen();setTimeout(renderMsgs,1500);renderMsgsLight()},2500)}
+function renderMsgsLight(){const nw=unread(msgs);$('#dot').hidden=!nw.length;$('#pill').hidden=true;document.title='Weekmenu';try{navigator.clearAppBadge?.()}catch(e){}}
+const chatObs=new IntersectionObserver(es=>{for(const e of es){chatVisible=e.isIntersecting;$('#pill').hidden=$('#pill').hidden||chatVisible;if(chatVisible)$('#pill').hidden=true;scheduleSeen()}},{threshold:.4});
+chatObs.observe($('#chat'));
+document.addEventListener('visibilitychange',scheduleSeen);
+$('#pill').onclick=()=>$('#chat').scrollIntoView({behavior:'smooth',block:'center'});
 function renderMsgs(){
  const list=msgs.filter(x=>x&&typeof x.tekst==='string'&&typeof x.t==='number').filter(x=>x.t>Date.now()-WEEK_MS).slice().reverse();
  const shown=showAll?list:list.slice(-4);
  $('#more').hidden=list.length<=4;$('#more').textContent=showAll?'Minder':'Ouder';
- $('#msgs').innerHTML=shown.length?shown.map(x=>`<li><b>${esc(nameOf(x.m))}</b>: ${esc(x.tekst)}<time>${esc(when(x.t))}</time></li>`).join(''):'<li class="empty">Nog geen berichten.</li>';
+ const nw=unread(list);$('#dot').hidden=!nw.length;$('#dot').textContent=nw.length;$('#pill').hidden=!nw.length||chatVisible;$('#pill').textContent=nw.length===1?'1 nieuw bericht':nw.length+' nieuwe berichten';
+ document.title=(nw.length?'('+nw.length+') ':'')+'Weekmenu';try{nw.length?navigator.setAppBadge?.(nw.length):navigator.clearAppBadge?.()}catch(e){}
+ $('#msgs').innerHTML=shown.length?shown.map(x=>`<li${nw.includes(x)?' class="new"':''}><b>${esc(nameOf(x.m))}</b>: ${esc(x.tekst)}<time>${esc(when(x.t))}</time></li>`).join(''):'<li class="empty">Nog geen berichten.</li>';
 }
 function renderMe(){
  const sel=$('#me');if(document.activeElement===sel)return;
@@ -334,7 +350,7 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27g';
+const APP_VERSION='2026-11-27h';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);
@@ -353,7 +369,7 @@ else{
  if(!FIREBASE_CONFIG)note('Proefmodus: nog niet gekoppeld aan de gedeelde opslag. Gegevens blijven op dit apparaat.');
  api.watchMembers(list=>{members=list.filter(m=>typeof m.name==='string').sort((a,b)=>(a.order||0)-(b.order||0));render()});
  openWeek();
- api.watchMsgs(list=>{msgs=list;renderMsgs()});
+ api.watchMsgs(list=>{msgs=list;renderMsgs();scheduleSeen()});
 }
 </script>
 </body>
