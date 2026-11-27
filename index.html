@@ -52,10 +52,10 @@ h1 small{display:block;font-size:15px;font-weight:600;color:rgba(255,255,255,.88
 .st[data-v=thuis] span{background:var(--grn);border:0;color:#fff}
 .st[data-v=laat] span{background:var(--yel);border:0;color:var(--butink)}
 .st[data-v=niet] span{background:var(--red);border:0;color:#fff}
-.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 2px 0;font-size:13px;color:var(--mute);align-items:center}
+.legend{display:flex;flex-wrap:wrap;gap:6px 10px;justify-content:space-between;margin:10px 2px 0;font-size:13px;color:var(--mute);align-items:center}
 .legend .st{display:inline-flex;min-height:0;border:0;cursor:default}
 .legend .st span{width:22px;height:22px;font-size:11px}
-.legend>div{display:flex;align-items:center;gap:5px}
+.legend>div{display:flex;align-items:center;gap:4px;white-space:nowrap}
 .who{margin:14px 2px 0;font-size:14px;color:var(--mute)}
 .who strong{color:var(--ink)}
 .acts{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
@@ -112,8 +112,8 @@ dialog p{margin:0 0 12px;color:var(--mute);font-size:15px}
  <div class="legend">
   <div><span class="st" data-v="thuis"><span>✓</span></span>thuis</div>
   <div><span class="st" data-v="laat"><span>L</span></span>later</div>
-  <div><span class="st" data-v="niet"><span>✕</span></span>eet niet mee</div>
-  <div><span class="st"><span>?</span></span>nog niet ingevuld</div>
+  <div><span class="st" data-v="niet"><span>✕</span></span>niet mee</div>
+  <div><span class="st"><span>?</span></span>nog open</div>
  </div>
  <p class="who" id="who"></p>
  <section class="chat" id="chat" aria-label="Berichten">
@@ -384,7 +384,7 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27j';
+const APP_VERSION='2026-11-27k';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);
