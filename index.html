@@ -333,11 +333,11 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27c';
+const APP_VERSION='2026-11-27d';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);
-  if(m&&m[1]!==APP_VERSION&&!document.querySelector('dialog[open]')){await fetch(location.pathname,{cache:'reload'});location.reload()}}catch(e){}
+  if(m&&m[1]!==APP_VERSION&&!document.querySelector('dialog[open]')){let k='';try{k=sessionStorage.getItem('wm-upd')}catch(e){}if(k===m[1])return;try{sessionStorage.setItem('wm-upd',m[1])}catch(e){}await fetch(location.href.split('#')[0],{cache:'reload'});location.reload()}}catch(e){}
 }
 setTimeout(checkUpdate,1500);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
