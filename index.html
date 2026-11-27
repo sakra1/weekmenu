@@ -185,6 +185,9 @@ const fridayOf=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
 const WEEK_MS=7*24*3600*1000;
+/* vaste gerechten: staan er elke week, tenzij je ze voor die week aanpast (leegmaken = die week niets) */
+const DEFAULTS={4:'Diepvries',6:'Pastasalade'};
+const dishOf=d=>Object.prototype.hasOwnProperty.call(menu,d)?String(menu[d]??''):(DEFAULTS[d]||'');
 const note=t=>{$('#note').textContent=t||''};
 const cnote=t=>{$('#cnote').textContent=t||''};
 
@@ -218,7 +221,7 @@ async function firebaseApi(cfg,code){
  return{
   watchMembers(cb){F.onSnapshot(fam,{includeMetadataChanges:true},s=>{ok(s);const m=(s.data()||{}).members||{};cb(Object.entries(m).filter(([,v])=>v).map(([id,v])=>({id,...v})))},fail)},
   watchWeek(k,cb){return F.onSnapshot(wref(k),{includeMetadataChanges:true},s=>{ok(s);const d=s.data()||{};cb(d.menu||{},d.att||{})},fail)},
-  setMenu(k,d,dish){merge(wref(k),{menu:{[d]:dish||F.deleteField()}})},
+  setMenu(k,d,dish){merge(wref(k),{menu:{[d]:dish===null?F.deleteField():dish}})},
   setAtt(k,d,m,s){merge(wref(k),{att:{[d+'_'+m]:s||F.deleteField()}})},
   saveMember(id,v){merge(fam,{members:{[id]:v}})},
   delMember(id){merge(fam,{members:{[id]:F.deleteField()}})},
@@ -237,7 +240,7 @@ function localApi(){
  return{
   watchMembers(cb){fm=cb;emitM()},
   watchWeek(k,cb){cur=k;fw=cb;emitW();return()=>{fw=null}},
-  setMenu(k,d,v){if(v)W(k).menu[d]=v;else delete W(k).menu[d];save();emitW()},
+  setMenu(k,d,v){if(v===null)delete W(k).menu[d];else W(k).menu[d]=v;save();emitW()},
   setAtt(k,d,m,s){if(s)W(k).att[d+'_'+m]=s;else delete W(k).att[d+'_'+m];save();emitW()},
   saveMember(id,v){S.members[id]=v;save();emitM()},
   delMember(id){delete S.members[id];save();emitM()},
@@ -257,7 +260,7 @@ function render(){
  let todayIdx=-1;
  for(let d=0;d<7;d++){
   const date=addDays(week,d),isT=ymd(date)===today;if(isT)todayIdx=d;
-  const t=isT?' today':'',dish=String(menu[d]||'');
+  const t=isT?' today':'',dish=dishOf(d);
   let n=0,open=0;for(const m of members){const s=st(d,m.id);if(s==='thuis'||s==='laat')n++;else if(!s)open++}
   h+=`<button class="dayc${t}" data-day="${d}" aria-label="Menu ${DAYS[d].toLowerCase()} aanpassen"><b>${DAYS[d].slice(0,2)} ${date.getDate()}</b>${dish?`<span>${esc(dish)}</span>`:'<span class="no">menu invullen</span>'}</button>`;
   h+=`<div class="cnt${t}"><b>${members.length?n:'–'}</b>${open&&members.length?`<i>+${open} ?</i>`:''}</div>`;
@@ -294,9 +297,9 @@ $('#grid').addEventListener('click',e=>{
  const b=e.target.closest('.st');
  if(b){const d=+b.dataset.d,m=b.dataset.m,s=NEXT[st(d,m)];if(s)att[d+'_'+m]=s;else delete att[d+'_'+m];render();api.setAtt(wk,d,m,s);return}
  const c=e.target.closest('.dayc');
- if(c){editDay=+c.dataset.day;$('#menuDay').textContent=`${DAYS[editDay]} ${fmt(addDays(week,editDay))}`;$('#menuIn').value=menu[editDay]||'';$('#dlgMenu').showModal();$('#menuIn').focus()}
+ if(c){editDay=+c.dataset.day;$('#menuDay').textContent=`${DAYS[editDay]} ${fmt(addDays(week,editDay))}`;$('#menuIn').value=dishOf(editDay);$('#dlgMenu').showModal();$('#menuIn').focus()}
 });
-$('#dlgMenu').addEventListener('close',()=>{if($('#dlgMenu').returnValue!=='ok')return;const v=$('#menuIn').value.trim();if((menu[editDay]||'')!==v){if(v)menu[editDay]=v;else delete menu[editDay];render();api.setMenu(wk,editDay,v)}});
+$('#dlgMenu').addEventListener('close',()=>{if($('#dlgMenu').returnValue!=='ok')return;const v=$('#menuIn').value.trim(),def=DEFAULTS[editDay]||'';if(dishOf(editDay)!==v){const nv=(v===def||(!v&&!def))?null:v;if(nv===null)delete menu[editDay];else menu[editDay]=nv;render();api.setMenu(wk,editDay,nv)}});
 /* ---------- berichten ---------- */
 let msgs=[],showAll=false,me='';
 try{me=localStorage.getItem('weekmenu-ik')||''}catch(e){}
@@ -350,7 +353,7 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27h';
+const APP_VERSION='2026-11-27i';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);
