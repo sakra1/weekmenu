@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#ff6b4a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Weekmenu">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png?v=2">
 <title>Weekmenu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
@@ -333,7 +333,7 @@ $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
 /* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
-const APP_VERSION='2026-11-27d';
+const APP_VERSION='2026-11-27e';
 async function checkUpdate(){
  try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
   const m=t.match(/APP_VERSION='([^']+)'/);
