@@ -332,6 +332,16 @@ $('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(link());
 $('#newCode').onclick=()=>{location.href=location.pathname+'?g='+makeCode()};
 addEventListener('hashchange',()=>{const c=readCode();if(c&&c!==code)location.reload()});
 
+/* ---------- automatisch bijwerken: nieuwe versie van de app ophalen ---------- */
+const APP_VERSION='2026-11-27c';
+async function checkUpdate(){
+ try{const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'reload'}).then(r=>r.text());
+  const m=t.match(/APP_VERSION='([^']+)'/);
+  if(m&&m[1]!==APP_VERSION&&!document.querySelector('dialog[open]')){await fetch(location.pathname,{cache:'reload'});location.reload()}}catch(e){}
+}
+setTimeout(checkUpdate,1500);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
+
 /* ---------- start ---------- */
 code=readCode();
 if(!code&&FIREBASE_CONFIG){$('#gate').hidden=false}
